@@ -5,9 +5,7 @@
 
 #define UNO_COMMAND_THROTTLE_INTERVAL 200 // мс (5 раз в секунду)
 
-DeviceManager::DeviceManager() {
-  dirtyPins = false;
-}
+DeviceManager::DeviceManager() {}
 
 int DeviceManager::pinToGpio(int pin) {
     if(pin < 0) return -1;
@@ -232,46 +230,6 @@ void DeviceManager::loop() {
   }
 }
 
-// ниже — исправлены все INPUT_PULLUP вызовы
-String DeviceManager::detectPinsInternal() {
-  StaticJsonDocument<1024> doc;
-  JsonArray arr = doc.createNestedArray("pins");
-
-  const int pinsToScan[] = {D0, D1, D2, D3, D5, D6, D7, D8};
-
-  for (int p : pinsToScan) {
-    int gpio_p = pinToGpio(p);
-    if (gpio_p < 0) continue;
-
-    bool skip = false;
-    for (auto &d : devices) {
-      if ((d.pin == gpio_p || d.pin2 == gpio_p) && d.type != "input" && d.type != "sensor") {
-        skip = true;
-        break;
-      }
-    }
-    if (skip) continue;
-
-    pinMode(gpio_p, INPUT_PULLUP);
-    delay(2);
-    int v = digitalRead(gpio_p);
-    JsonObject o = arr.createNestedObject();
-    o["pin"] = p; // Отправляем D-номер
-    o["state"] = v;
-    o["mode"] = (v == HIGH) ? "input" : "active";
-  }
-
-  String out;
-  serializeJson(doc, out);
-  return out;
-}
-
-void DeviceManager::notifyPinsChanged() {
-  if (!broadcaster) return;
-  String pinsJson = getDetectedPinsJson(); // Используем уже готовую функцию
-  broadcaster(pinsJson);
-}
-
 String DeviceManager::getDevicesJson() {
   StaticJsonDocument<1024> doc;
   JsonArray arr = doc.createNestedArray("devices");
@@ -293,29 +251,6 @@ String DeviceManager::getStatusJson() {
   doc["cmd"] = "status";
   doc["uptime_ms"] = millis();
   doc["device_count"] = (int)devices.size();
-  String out;
-  serializeJson(doc, out);
-  return out;
-}
-
-String DeviceManager::getDetectedPinsJson() {
-  StaticJsonDocument<1024> doc;
-  doc["cmd"] = "detected_pins";
-  JsonArray arr = doc.createNestedArray("pins");
-  const int pinsToScan[] = {D0, D1, D2, D3, D5, D6, D7, D8};
-
-  for (int p : pinsToScan) {
-    int gpio_p = pinToGpio(p);
-    if(gpio_p < 0) continue;
-    
-    pinMode(gpio_p, INPUT_PULLUP);
-    delay(2);
-    int v = digitalRead(gpio_p);
-    JsonObject o = arr.createNestedObject();
-    o["pin"] = p;
-    o["state"] = v;
-    o["mode"] = (v == HIGH) ? "input" : "active";
-  }
   String out;
   serializeJson(doc, out);
   return out;

@@ -62,14 +62,11 @@ void WebServerManager::loop() {
 
       // Prepare messages as lvalues
       String devs = deviceManager.getDevicesJson();
-      String pins = deviceManager.getDetectedPinsJson();
       String st = deviceManager.getStatusJson();
       String boardInfo = deviceManager.getBoardInfoJson();
 
       // Send sequentially with tiny delays to avoid flooding
       ws.sendTXT(clientNum, devs);
-      delay(10);
-      ws.sendTXT(clientNum, pins);
       delay(10);
       ws.sendTXT(clientNum, st);
       delay(10);
@@ -112,9 +109,6 @@ void WebServerManager::handleMessage(uint8_t num, String msg) {
     ws.sendTXT(num, out);
   } else if (cmd == "get_status") {
     String out = deviceManager.getStatusJson();
-    ws.sendTXT(num, out);
-  } else if (cmd == "get_detected_pins") {
-    String out = deviceManager.getDetectedPinsJson();
     ws.sendTXT(num, out);
   } else if (cmd == "set_config") {
     if (doc.containsKey("config") && doc["config"].containsKey("devices")) {

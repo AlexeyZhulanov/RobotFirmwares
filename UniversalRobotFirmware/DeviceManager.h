@@ -58,8 +58,6 @@ private:
   unsigned long lastSensorPollMillis = 0;
   std::vector<DeviceInfo> devices;
   unsigned long lastSensorMillis = 0;
-  String lastPinsJson;
-  bool dirtyPins;
   bool waitingForSensorResponse = false;
 
   std::function<void(const String&)> broadcaster;
