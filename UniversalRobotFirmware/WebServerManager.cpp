@@ -24,13 +24,13 @@ void WebServerManager::begin() {
       unsigned long now = millis();
       if (now - lastConnectMillis < 100) {
         // ignore very fast repeated connect events
-        Serial.printf("[WS] Ignored spurious connect %u\n", num);
+        //Serial.printf("[WS] Ignored spurious connect %u\n", num);
         lastConnectMillis = now;
         return;
       }
       lastConnectMillis = now;
 
-      Serial.printf("[WS] Client %u connected (queued)\n", num);
+      //Serial.printf("[WS] Client %u connected (queued)\n", num);
       // enqueue for deferred initial send in loop()
       pendingClient = num;
       pendingClientTimestamp = millis();
@@ -38,7 +38,7 @@ void WebServerManager::begin() {
         onClientConnected();
       }
     } else if (type == WStype_DISCONNECTED) {
-      Serial.printf("[WS] Client %u disconnected\n", num);
+      //Serial.printf("[WS] Client %u disconnected\n", num);
       // if pendingClient was this client, clear
       if (pendingClient == num) pendingClient = -1;
       if (onClientDisconnected) {
@@ -47,7 +47,7 @@ void WebServerManager::begin() {
     }
   });
 
-  Serial.println("[WebSocket] Started on port 81");
+  //Serial.println("[WebSocket] Started on port 81");
 }
 
 void WebServerManager::loop() {
@@ -71,7 +71,7 @@ void WebServerManager::loop() {
       ws.sendTXT(clientNum, st);
       delay(10);
       ws.sendTXT(clientNum, boardInfo);
-      Serial.printf("[WS] Initial payloads sent to client %u\n", clientNum);
+      //Serial.printf("[WS] Initial payloads sent to client %u\n", clientNum);
     }
   }
 
@@ -82,7 +82,7 @@ void WebServerManager::loop() {
 void WebServerManager::broadcast(const String& s) {
   if (busyBroadcast) {
     // skip if broadcast already in progress (simple protection)
-    Serial.println("[WS] Broadcast busy - skipping");
+    //Serial.println("[WS] Broadcast busy - skipping");
     return;
   }
   busyBroadcast = true;
@@ -133,23 +133,36 @@ void WebServerManager::handleMessage(uint8_t num, String msg) {
       ws.sendTXT(num, errMsg);
     }
   } else if (cmd == "action") {
-    String name = doc["device"].as<String>();
     String act = doc["action"].as<String>();
 
     if (act == "on" || act == "off") {
+      String name = doc["device"].as<String>();
       bool on = (act == "on");
       deviceManager.setDeviceState(name, on);
+      String logMsg = String("{\"log\":\"action_executed\",\"device\":\"") + name + "\"}";
+      ws.sendTXT(num, logMsg);
+      // broadcast device state updated (send devices array)
+      String devs = deviceManager.getDevicesJson();
+      broadcast(devs);
+    }
+    else if (act == "set_servo") {
+      String name = doc["device"].as<String>();
+      int angle = doc["value"] | 90;
+      deviceManager.setDeviceServoAngle(name, angle);
     }
     else if (act == "set_speed") {
+      String name = doc["device"].as<String>();
       int speed = doc["value"] | 0;
       deviceManager.setDeviceSpeed(name, speed);
-      Serial.printf("[WebServer] Motor %s speed=%d\n", name.c_str(), speed);
+      //Serial.printf("[WebServer] Motor %s speed=%d\n", name.c_str(), speed);
     }
-    String logMsg = String("{\"log\":\"action_executed\",\"device\":\"") + name + "\"}";
-    ws.sendTXT(num, logMsg);
-    // broadcast device state updated (send devices array)
-    String devs = deviceManager.getDevicesJson();
-    broadcast(devs);
+    else if (act == "set_tank_speed") {
+      String leftName = doc["left_device"].as<String>();
+      int leftSpeed = doc["left_value"] | 0;
+      String rightName = doc["right_device"].as<String>();
+      int rightSpeed = doc["right_value"] | 0;
+      deviceManager.setDeviceTankSpeed(leftName, leftSpeed, rightName, rightSpeed);
+    }
   } else if (cmd == "subscribe") {
     if (doc.containsKey("device")) {
       String name = doc["device"].as<String>();

@@ -15,9 +15,10 @@ ConfigStorage configStorage("/config.json");
 DeviceManager deviceManager;
 WebServerManager wsManager(81, deviceManager, configStorage);
 
-#define RS485_RX_PIN D6
-#define RS485_TX_PIN D7
-RS485Manager rs485Manager(RS485_RX_PIN, RS485_TX_PIN);
+//#define RS485_RX_PIN D6
+//#define RS485_TX_PIN D7
+//RS485Manager rs485Manager(RS485_RX_PIN, RS485_TX_PIN);
+RS485Manager rs485Manager;
 
 ESP8266WebServer httpServer(80);
 
@@ -35,14 +36,14 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
   Serial.begin(115200);
   delay(200);
-  Serial.println();
-  Serial.println("[SETUP] Universal Robot Firmware starting...");
+  //Serial.println();
+  //Serial.println("[SETUP] Universal Robot Firmware starting...");
 
   // SPIFFS
   if (!SPIFFS.begin()) {
-    Serial.println("[ERROR] SPIFFS.begin() failed");
+    //Serial.println("[ERROR] SPIFFS.begin() failed");
   } else {
-    Serial.println("[FS] SPIFFS mounted");
+    //Serial.println("[FS] SPIFFS mounted");
   }
 
   // Включаем режим клиента
@@ -52,14 +53,14 @@ void setup() {
   // Ждем подключения (важно!)
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+  //  Serial.print(".");
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected!");
-  Serial.printf("UDP Discovery started on port %d\n", udpPort);
-  Serial.print("[WiFi] ESP IP: ");
-  Serial.println(WiFi.localIP());
+  //Serial.println("");
+  //Serial.println("WiFi connected!");
+  //Serial.printf("UDP Discovery started on port %d\n", udpPort);
+  //Serial.print("[WiFi] ESP IP: ");
+  //Serial.println(WiFi.localIP());
 
   udp.begin(udpPort);
 
@@ -80,13 +81,13 @@ void setup() {
   wsManager.begin();
   wsManager.onClientConnected = []() {
     discoveryDone = true;
-    Serial.println("[UDP] Discovery stopped (WS connected)");
+    //Serial.println("[UDP] Discovery stopped (WS connected)");
   };
   wsManager.onClientDisconnected = []() {
     discoveryDone = false;
-    Serial.println("[UDP] Discovery resumed (WS disconnected)");
+    //Serial.println("[UDP] Discovery resumed (WS disconnected)");
   };
-  Serial.println("[INIT] Ready.");
+  //Serial.println("[INIT] Ready.");
 }
 
 void loop() {
@@ -111,5 +112,5 @@ void sendDiscovery() {
   udp.print(WiFi.localIP().toString()); // передаём IP ESP
   udp.endPacket();
 
-  Serial.println("[UDP] Discovery sent to phone");
+  //Serial.println("[UDP] Discovery sent to phone");
 }

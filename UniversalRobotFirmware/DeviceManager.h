@@ -40,6 +40,8 @@ public:
   // actions
   void setDeviceState(const String& name, bool on);
   void setDeviceSpeed(const String& name, int speed8bit);
+  void setDeviceServoAngle(const String& name, int angle);
+  void setDeviceTankSpeed(const String& leftName, int leftSpeed, const String& rightName, int rightSpeed);
   void setSubscription(const String& name, bool sub);
 
   // queries

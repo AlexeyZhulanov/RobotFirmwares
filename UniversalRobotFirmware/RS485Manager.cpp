@@ -1,18 +1,19 @@
 #include "RS485Manager.h"
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 
 // Создаем "виртуальный" серийный порт для общения по RS-485
-SoftwareSerial rs485Serial;
+//SoftwareSerial rs485Serial;
 
-RS485Manager::RS485Manager(byte receivePin, byte transmitPin) {
-  _rxPin = receivePin;
-  _txPin = transmitPin;
-}
+//RS485Manager::RS485Manager(byte receivePin, byte transmitPin) {
+//  _rxPin = receivePin;
+//  _txPin = transmitPin;
+//}
+RS485Manager::RS485Manager() {}
 
 void RS485Manager::begin() {
   // Инициализируем наш виртуальный порт
-  rs485Serial.begin(9600, SWSERIAL_8N1, _rxPin, _txPin, false);
-  Serial.println("[RS485] Manager started on pins RX/TX/DIR: " + String(_rxPin) + "/" + String(_txPin));
+  //rs485Serial.begin(9600, SWSERIAL_8N1, _rxPin, _txPin, false);
+  //Serial.println("[RS485] Manager started on pins RX/TX/DIR: " + String(_rxPin) + "/" + String(_txPin));
 }
 
 void RS485Manager::setOnSensorData(std::function<void(byte, const String&)> cb) {
@@ -21,19 +22,19 @@ void RS485Manager::setOnSensorData(std::function<void(byte, const String&)> cb) 
 
 void RS485Manager::requestSensorData(byte slaveId) {
   String packet = String(slaveId) + ":GET_SENSORS:0\n";
-  rs485Serial.print(packet);
-  rs485Serial.flush();
-  delay(10); // Пауза для эха
-  Serial.printf("[RS485] Sent: %s", packet.c_str());
+  Serial.print(packet);
+  Serial.flush();
+  //delay(10); // Пауза для эха
+  //Serial.printf("[RS485] Sent: %s", packet.c_str());
 }
 
 void RS485Manager::loop() {
-  if (rs485Serial.available()) {
-    Serial.printf("YES");
-    String response = rs485Serial.readStringUntil('\n');
+  if (Serial.available()) {
+    //Serial.printf("YES");
+    String response = Serial.readStringUntil('\n');
     response.trim();
     if (response.length() > 0) {
-      Serial.printf("[RS485] Received response: %s\n", response.c_str());
+      //Serial.printf("[RS485] Received response: %s\n", response.c_str());
       parseResponse(response);
     }
   }
@@ -44,13 +45,22 @@ void RS485Manager::sendCommand(byte slaveId, const String& command, int value) {
   String packet = String(slaveId) + ":" + command + ":" + String(value) + "\n";
   
   // 2. Отправляем пакет
-  rs485Serial.print(packet);
+  Serial.print(packet);
   
   // 3. Ждем, пока все данные будут отправлены
-  rs485Serial.flush();
+  Serial.flush();
   
-  Serial.printf("[RS485] Sent: %s", packet.c_str());
-  delay(10);
+  //Serial.printf("[RS485] Sent: %s", packet.c_str());
+  //delay(10);
+}
+
+void RS485Manager::sendStringCommand(byte slaveId, const String& command, const String& payload) {
+  // Формат: ID:Команда:Строка_Данных\n
+  String packet = String(slaveId) + ":" + command + ":" + payload + "\n";
+  Serial.print(packet);
+  Serial.flush();
+  //Serial.printf("[RS485] Sent: %s", packet.c_str());
+  //delay(10);
 }
 
 void RS485Manager::parseResponse(const String& packet) {

@@ -58,7 +58,7 @@ void DeviceManager::addDevice(const String& name, int pin, int pin2, const Strin
   //  return;
   //}
   if (pin2 >= 0 && pin == pin2) {
-    Serial.printf("[DeviceManager] Error: Cannot use the same pin (%d) for both functions of device %s\n", pin, name.c_str());
+    //Serial.printf("[DeviceManager] Error: Cannot use the same pin (%d) for both functions of device %s\n", pin, name.c_str());
     return;
   }
 
@@ -92,11 +92,11 @@ void DeviceManager::addDevice(const String& name, int pin, int pin2, const Strin
   // Если имя новое, проверяем, не заняты ли пины другими устройствами
   for (auto &d : devices) {
     if (gpio >= 0 && (d.pin == gpio || (d.pin2 >= 0 && d.pin2 == gpio))) {
-      Serial.printf("[DeviceManager] Error: Pin %d (GPIO %d) is already used by device '%s'\n", pin, gpio, d.name.c_str());
+      //Serial.printf("[DeviceManager] Error: Pin %d (GPIO %d) is already used by device '%s'\n", pin, gpio, d.name.c_str());
       return;
     }
     if (gpio2 >= 0 && (d.pin == gpio2 || (d.pin2 >= 0 && d.pin2 == gpio2))) {
-      Serial.printf("[DeviceManager] Error: Pin %d (GPIO %d) is already used by device '%s'\n", pin2, gpio2, d.name.c_str());
+      //Serial.printf("[DeviceManager] Error: Pin %d (GPIO %d) is already used by device '%s'\n", pin2, gpio2, d.name.c_str());
       return;
     }
   }
@@ -129,7 +129,7 @@ void DeviceManager::addDevice(const String& name, int pin, int pin2, const Strin
     }
   }
 
-  Serial.printf("[DeviceManager] Device '%s' added on pin(s) D%d, D%d\n", name.c_str(), pin, pin2);
+  //Serial.printf("[DeviceManager] Device '%s' added on pin(s) D%d, D%d\n", name.c_str(), pin, pin2);
 
   StaticJsonDocument<256> doc;
   doc["cmd"] = "device_added";
@@ -164,10 +164,10 @@ void DeviceManager::setDeviceState(const String& name, bool on) {
             // Если это встроенный LED (GPIO2)
             if (actualPin == LED_BUILTIN) {
               digitalWrite(actualPin, on ? LOW : HIGH); // инверсное управление
-              Serial.printf("[DeviceManager] LED_BUILTIN -> %s (GPIO%d)\n", on ? "ON" : "OFF", actualPin);
+              //Serial.printf("[DeviceManager] LED_BUILTIN -> %s (GPIO%d)\n", on ? "ON" : "OFF", actualPin);
             } else {
               digitalWrite(actualPin, on ? HIGH : LOW);
-              Serial.printf("[DeviceManager] %s -> %s (GPIO%d)\n", d.name.c_str(), on ? "ON" : "OFF", actualPin);
+              //Serial.printf("[DeviceManager] %s -> %s (GPIO%d)\n", d.name.c_str(), on ? "ON" : "OFF", actualPin);
             }
             notifyDeviceStateChanged(name, on);
             return;
@@ -223,7 +223,7 @@ void DeviceManager::loop() {
     } else {
       // Если мы ждём ответа, но прошло слишком много времени (Тайм-аут)
       if (now - lastSensorPollMillis > 200) { // Ждём 200 мс
-        Serial.println("[RS485] Timeout: No sensor data received from slave.");
+        //Serial.println("[RS485] Timeout: No sensor data received from slave.");
         waitingForSensorResponse = false; // Сбрасываем флаг, чтобы попробовать снова
       }
     }
@@ -273,9 +273,9 @@ void DeviceManager::saveToConfig(ConfigStorage& storage) {
   String out;
   serializeJson(doc, out);
   if (storage.write(out)) {
-    Serial.println("[Config] Saved config");
+    //Serial.println("[Config] Saved config");
   } else {
-    Serial.println("[Config] Failed to save config");
+    //Serial.println("[Config] Failed to save config");
   }
   if (rs485Manager != nullptr) {
     bool hasSensors = false; // Локальный флаг
@@ -287,7 +287,7 @@ void DeviceManager::saveToConfig(ConfigStorage& storage) {
     // Обновляем наш глобальный флаг
     slave1_has_sensors = hasSensors;
     if (hasSensors) {
-      Serial.println("[DeviceManager] Slave sensor polling enabled.");
+      //Serial.println("[DeviceManager] Slave sensor polling enabled.");
     }
   }
 }
@@ -295,15 +295,15 @@ void DeviceManager::saveToConfig(ConfigStorage& storage) {
 void DeviceManager::loadFromConfig(ConfigStorage& storage) {
   String configJson = storage.read();
   if (configJson.length() == 0) {
-    Serial.println("[Config] Config file not found or empty. Starting fresh.");
+    //Serial.println("[Config] Config file not found or empty. Starting fresh.");
     return;
   }
 
   StaticJsonDocument<2048> doc;
   DeserializationError err = deserializeJson(doc, configJson);
   if (err) {
-    Serial.print("[Config] Failed to parse config file: ");
-    Serial.println(err.c_str());
+    //Serial.print("[Config] Failed to parse config file: ");
+    //Serial.println(err.c_str());
     return;
   }
 
@@ -322,7 +322,7 @@ void DeviceManager::loadFromConfig(ConfigStorage& storage) {
       }
     }
     slave1_has_sensors = hasSensors;
-    Serial.printf("[Config] Loaded %d devices. Slave sensor polling: %s\n", devices.size(), hasSensors ? "ON" : "OFF");
+    //Serial.printf("[Config] Loaded %d devices. Slave sensor polling: %s\n", devices.size(), hasSensors ? "ON" : "OFF");
   }
 }
 
@@ -330,9 +330,12 @@ void DeviceManager::loadFromConfig(ConfigStorage& storage) {
 void DeviceManager::setDeviceSpeed(const String& name, int speedSigned) {
     if (name.startsWith("uno_") && rs485Manager != nullptr) {
         unsigned long now = millis();
-        // Это команда для Arduino! Перенаправляем её.
-        // Условно, адрес Arduino Uno будет 1.
-        if (now - lastUnoCommandMillis[name] > UNO_COMMAND_THROTTLE_INTERVAL) {
+
+        // Флаг экстренной остановки, скорость 0 нельзя троттлить
+        bool isStopCommand = (speedSigned == 0);
+        
+        // Адрес Arduino Uno здесь равен 1.
+        if (isStopCommand || (now - lastUnoCommandMillis[name] > UNO_COMMAND_THROTTLE_INTERVAL)) {
           rs485Manager->sendCommand(1, name, speedSigned); 
           lastUnoCommandMillis[name] = now; // Обновляем время последней отправки
         } 
@@ -355,8 +358,7 @@ void DeviceManager::setDeviceSpeed(const String& name, int speedSigned) {
             int pwmValue = map(abs(speedSigned), 0, 255, 0, 1023);
             analogWrite(pin, pwmValue);
 
-            Serial.printf("[Motor] %s: DirPin=%d, PwmPin=%d, Speed=%d\n",
-                          d.name.c_str(), pin2, pin, speedSigned);
+            //Serial.printf("[Motor] %s: DirPin=%d, PwmPin=%d, Speed=%d\n", d.name.c_str(), pin2, pin, speedSigned);
 
             StaticJsonDocument<256> doc;
             doc["cmd"] = "speed_changed";
@@ -368,7 +370,36 @@ void DeviceManager::setDeviceSpeed(const String& name, int speedSigned) {
             return;
         }
     }
-    Serial.printf("[DeviceManager] setDeviceSpeed: device %s not found or not motor\n", name.c_str());
+    //Serial.printf("[DeviceManager] setDeviceSpeed: device %s not found or not motor\n", name.c_str());
+}
+
+void DeviceManager::setDeviceTankSpeed(const String& leftName, int leftSpeed, const String& rightName, int rightSpeed) {
+  if (leftName.startsWith("uno_motor_") && rightName.startsWith("uno_motor_") && rs485Manager != nullptr) {
+    unsigned long now = millis();
+
+    // Флаг экстренной остановки хотя бы одного мотора, скорость 0 нельзя троттлить
+    bool isStopCommand = (leftSpeed == 0 || rightSpeed == 0);
+        
+    // Адрес Arduino Uno здесь равен 1.
+    if (isStopCommand || (now - lastUnoCommandMillis["uno_tank"] > UNO_COMMAND_THROTTLE_INTERVAL)) {
+      // Ожидаем имена вида uno_motor_5_4
+      String lPins = leftName.substring(10); // 5_4
+      String rPins = rightName.substring(10); // 3_2
+      lPins.replace("_", ",");
+      rPins.replace("_", ",");
+      
+      // Формируем payload для Uno
+      String payload = lPins + "," + String(leftSpeed) + "," + rPins + "," + String(rightSpeed);
+      rs485Manager->sendStringCommand(1, "uno_tank", payload); 
+      lastUnoCommandMillis["uno_tank"] = now;
+    }
+  }
+}
+
+void DeviceManager::setDeviceServoAngle(const String& name, int angle) {
+  if (name.startsWith("uno_servo_") && rs485Manager != nullptr) {
+    rs485Manager->sendCommand(1, name, angle);
+  }
 }
 
 // ========================= SENSOR SUBSCRIPTION =========================
@@ -376,11 +407,11 @@ void DeviceManager::setSubscription(const String& name, bool sub) {
     for (auto &d : devices) {
         if (d.name == name && d.type == "sensor") {
             d.subscribed = sub;
-            Serial.printf("[DeviceManager] %s subscription -> %s\n", name.c_str(), sub ? "ON" : "OFF");
+            //Serial.printf("[DeviceManager] %s subscription -> %s\n", name.c_str(), sub ? "ON" : "OFF");
             return;
         }
     }
-    Serial.printf("[DeviceManager] setSubscription: sensor %s not found\n", name.c_str());
+    //Serial.printf("[DeviceManager] setSubscription: sensor %s not found\n", name.c_str());
 }
 
 // ========================= SENSORS JSON SNAPSHOT =========================
